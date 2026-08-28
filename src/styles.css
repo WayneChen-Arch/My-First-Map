@@ -186,10 +186,9 @@ button { color: inherit; }
 .panel-tip strong { color: #b27125; }
 
 .map-stage { min-width: 0; flex: 1; position: relative; overflow: hidden; background: #e9f4ef; }
-.leaflet-container { width: 100%; height: 100%; background: #eaf3ef; font-family: inherit; }
-.leaflet-tile-pane { filter: saturate(.72) contrast(.92) brightness(1.04); }
-.leaflet-control-container { display: none; }
-.leaflet-interactive:focus { outline: none; }
+.map-container { width: 100%; height: 100%; background: #eaf3ef; font-family: inherit; }
+.maplibregl-canvas { filter: saturate(.76) contrast(.94) brightness(1.03); }
+.maplibregl-control-container { display: none; }
 
 .map-stage::after {
   content: '';
@@ -200,7 +199,16 @@ button { color: inherit; }
   box-shadow: inset 0 0 70px rgba(52, 96, 83, .08);
 }
 
-.place-marker-wrap, .home-marker-wrap { background: transparent !important; border: 0 !important; }
+.place-marker-wrap, .home-marker-wrap {
+  width: 96px;
+  padding: 0;
+  display: block;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.home-marker-wrap { cursor: default; }
 .place-marker {
   width: 88px;
   height: 69px;
