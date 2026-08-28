@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L, { type Map as LeafletMap, type Marker as LeafletMarker } from 'leaflet'
+import { leafletLayer } from 'protomaps-leaflet'
 import {
   ChevronLeft,
   Home,
@@ -14,9 +15,21 @@ import {
   Volume2,
   X,
 } from 'lucide-react'
-import { HOME, places, type Place } from './places'
+import { categoryList, HOME, places, type Place, type PlaceKind } from './places'
+import { cleanMapPaintRules } from './mapStyle'
 
-const MAP_BOUNDS = L.latLngBounds([22.266, 114.174], [22.315, 114.235])
+const MAP_BOUNDS = L.latLngBounds([22.2824, 114.1909], [22.3004, 114.2103])
+
+function distanceFromHome(place: Place) {
+  const lat = (place.position[0] - HOME[0]) * 111_320
+  const lon = (place.position[1] - HOME[1]) * 111_320 * Math.cos((HOME[0] * Math.PI) / 180)
+  return Math.hypot(lat, lon)
+}
+
+function osmUrl(osmId: string) {
+  const types = { n: 'node', w: 'way', r: 'relation' }
+  return `https://www.openstreetmap.org/${types[osmId[0] as keyof typeof types]}/${osmId.slice(1)}`
+}
 
 function KidsMap({
   visiblePlaces,
@@ -41,19 +54,26 @@ function KidsMap({
     if (!containerRef.current || mapRef.current) return
     const map = L.map(containerRef.current, {
       center: HOME,
-      zoom: 15,
-      minZoom: 14,
-      maxZoom: 16,
+      zoom: 16,
+      minZoom: 15,
+      maxZoom: 19,
       maxBounds: MAP_BOUNDS,
       maxBoundsViscosity: 0.9,
       zoomControl: false,
       attributionControl: false,
     })
     mapRef.current = map
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      minZoom: 14,
-      maxZoom: 16,
-      className: 'soft-map-tiles',
+    const archiveUrl = new URL(`${import.meta.env.BASE_URL}north-point.pmtiles`, window.location.origin).toString()
+    leafletLayer({
+      url: archiveUrl,
+      paintRules: cleanMapPaintRules,
+      labelRules: [],
+      backgroundColor: '#f7f2e8',
+      maxDataZoom: 15,
+      minZoom: 15,
+      maxZoom: 19,
+      bounds: MAP_BOUNDS,
+      attribution: '© OpenStreetMap 貢獻者 · Protomaps',
     }).addTo(map)
     L.circle(HOME, {
       radius: 1000,
@@ -127,14 +147,28 @@ function App() {
   const [showWelcome, setShowWelcome] = useState(true)
   const [showInfo, setShowInfo] = useState(false)
 
-  const categories = useMemo(() => places.map(({ kind, label, emoji, color }) => ({ kind, label, emoji, color })), [])
+  const categories = useMemo(
+    () => categoryList.map((category) => ({ ...category, count: places.filter((place) => place.kind === category.kind).length })),
+    [],
+  )
   const visiblePlaces = useMemo(
-    () =>
-      places.filter(
-        (place) =>
-          (activeKind === 'all' || place.kind === activeKind) &&
-          (!query.trim() || `${place.label}${place.name}`.includes(query.trim())),
-      ),
+    () => {
+      const matching = places
+        .filter(
+          (place) =>
+            (activeKind === 'all' || place.kind === activeKind) &&
+            (!query.trim() || `${place.label}${place.name}`.toLowerCase().includes(query.trim().toLowerCase())),
+        )
+        .sort((a, b) => distanceFromHome(a) - distanceFromHome(b))
+
+      if (activeKind !== 'all' || query.trim()) return matching
+
+      const nearestByKind = new Map<PlaceKind, Place>()
+      matching.forEach((place) => {
+        if (!nearestByKind.has(place.kind)) nearestByKind.set(place.kind, place)
+      })
+      return [...nearestByKind.values()]
+    },
     [activeKind, query],
   )
 
@@ -144,9 +178,24 @@ function App() {
   }
 
   function resetHome() {
-    mapRef.current?.flyTo(HOME, 15, { duration: 0.8 })
+    mapRef.current?.flyTo(HOME, 16, { duration: 0.8 })
     setSelected(null)
     setActiveKind('all')
+  }
+
+  function showCategory(kind: PlaceKind) {
+    setActiveKind(kind)
+    setSelected(null)
+    const categoryPlaces = places.filter((place) => place.kind === kind)
+    if (categoryPlaces.length > 1) {
+      mapRef.current?.flyToBounds(L.latLngBounds(categoryPlaces.map((place) => place.position)), {
+        padding: [90, 90],
+        maxZoom: 17,
+        duration: 0.7,
+      })
+    } else if (categoryPlaces[0]) {
+      mapRef.current?.flyTo(categoryPlaces[0].position, 18, { duration: 0.7 })
+    }
   }
 
   return (
@@ -192,13 +241,9 @@ function App() {
                 key={item.kind}
                 className={`category-item ${activeKind === item.kind ? 'active' : ''}`}
                 style={{ '--category-color': item.color } as React.CSSProperties}
-                onClick={() => {
-                  setActiveKind(item.kind)
-                  const place = places.find((candidate) => candidate.kind === item.kind)!
-                  setSelected(place)
-                }}
+                onClick={() => showCategory(item.kind)}
               >
-                <span>{item.emoji}</span><b>{item.label}</b>
+                <span>{item.emoji}</span><b>{item.label}</b><small>{item.count} 個</small>
               </button>
             ))}
           </div>
@@ -219,7 +264,7 @@ function App() {
             <button onClick={() => mapRef.current?.zoomOut(1, { animate: true })} aria-label="縮小地圖"><Minus /></button>
             <button className="locate-button" onClick={resetHome} aria-label="回到我的家"><LocateFixed /></button>
           </div>
-          <div className="attribution">© OpenStreetMap 貢獻者</div>
+          <div className="attribution">© OpenStreetMap 貢獻者 · Protomaps</div>
 
           {visiblePlaces.length === 0 && (
             <div className="empty-state"><span>🔎</span><b>找不到這個地方</b><p>試試搜尋「公園」或「學校」吧！</p></div>
@@ -234,6 +279,9 @@ function App() {
                 <h2>{selected.label}</h2>
                 <h3>{selected.name}</h3>
                 <p>{selected.description}</p>
+                <a className="osm-source" href={osmUrl(selected.osmId)} target="_blank" rel="noreferrer">
+                  OpenStreetMap 已核對 ↗
+                </a>
               </div>
               <button className="speak-button" onClick={() => speak(selected)}>
                 <Volume2 size={26} fill="currentColor" />
@@ -272,10 +320,10 @@ function App() {
             <button className="modal-close" onClick={() => setShowInfo(false)} aria-label="關閉"><X /></button>
             <div className="info-icon">🗺️</div>
             <h2>給大人的小提示</h2>
-            <p>這是一張為 3–6 歲小朋友簡化的社區地圖。目前顯示北角附近約 4 公里範圍，綠色虛線是以「我的家」為中心的 1 公里探索圈。</p>
+            <p>這是一張為 3–6 歲小朋友簡化的社區地圖。目前只顯示北角附近約 1 公里範圍，綠色虛線是以「我的家」為中心的探索圈。</p>
             <ul>
-              <li>拖動地圖看看附近，縮放限制在 14–16 級。</li>
-              <li>興趣點以大圖案和繁體中文呈現。</li>
+              <li>拖動地圖看看附近，縮放限制在 15–19 級。</li>
+              <li>每類最多顯示 5 個經 OSM 核對的真實地點。</li>
               <li>按「聽一聽」可播放粵語文字。</li>
               <li>地圖與興趣點會儲存在裝置，方便再次瀏覽。</li>
             </ul>
