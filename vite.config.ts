@@ -2,10 +2,14 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
+export default defineConfig(({ mode }) => {
+  const base = mode === 'pages' ? '/My-First-Map/' : '/'
+
+  return {
+    base,
+    plugins: [
+      react(),
+      VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['map-pin.svg'],
       manifest: {
@@ -15,10 +19,11 @@ export default defineConfig({
         theme_color: '#fffaf1',
         background_color: '#fffaf1',
         display: 'standalone',
-        start_url: '/',
+        scope: base,
+        start_url: base,
         icons: [
           {
-            src: '/map-pin.svg',
+            src: `${base}map-pin.svg`,
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any maskable',
@@ -37,6 +42,7 @@ export default defineConfig({
           },
         ],
       },
-    }),
-  ],
+      }),
+    ],
+  }
 })
