@@ -91,7 +91,7 @@ export const cleanMapPaintRules: PaintRule[] = [
     dataLayer: 'roads',
     symbolizer: new LineSymbolizer({
       color: '#e0d8c9',
-      width: (zoom, feature) => roadWidth(zoom, feature) + 2,
+      width: (zoom) => roadWidth(zoom) + 2,
     }),
     filter: kindIs('other', 'path', 'minor_road'),
   },
@@ -107,7 +107,7 @@ export const cleanMapPaintRules: PaintRule[] = [
     dataLayer: 'roads',
     symbolizer: new LineSymbolizer({
       color: '#d9c8b2',
-      width: (zoom, feature) => majorRoadWidth(zoom, feature) + 3,
+      width: (zoom) => majorRoadWidth(zoom) + 3,
     }),
     filter: kindIs('major_road'),
   },
@@ -123,7 +123,7 @@ export const cleanMapPaintRules: PaintRule[] = [
     dataLayer: 'roads',
     symbolizer: new LineSymbolizer({
       color: '#dfb986',
-      width: (zoom, feature) => majorRoadWidth(zoom, feature) + 4,
+      width: (zoom) => majorRoadWidth(zoom) + 4,
     }),
     filter: kindIs('highway'),
   },
