@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L, { type Map as LeafletMap, type Marker as LeafletMarker } from 'leaflet'
+import { leafletLayer } from 'protomaps-leaflet'
 import {
   ChevronLeft,
   Home,
@@ -15,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { categoryList, HOME, places, type Place, type PlaceKind } from './places'
+import { cleanMapPaintRules } from './mapStyle'
 
 const MAP_BOUNDS = L.latLngBounds([22.2824, 114.1909], [22.3004, 114.2103])
 
@@ -61,10 +63,17 @@ function KidsMap({
       attributionControl: false,
     })
     mapRef.current = map
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const archiveUrl = new URL(`${import.meta.env.BASE_URL}north-point.pmtiles`, window.location.origin).toString()
+    leafletLayer({
+      url: archiveUrl,
+      paintRules: cleanMapPaintRules,
+      labelRules: [],
+      backgroundColor: '#f7f2e8',
+      maxDataZoom: 15,
       minZoom: 15,
       maxZoom: 19,
-      className: 'soft-map-tiles',
+      bounds: MAP_BOUNDS,
+      attribution: '© OpenStreetMap 貢獻者 · Protomaps',
     }).addTo(map)
     L.circle(HOME, {
       radius: 1000,
@@ -255,7 +264,7 @@ function App() {
             <button onClick={() => mapRef.current?.zoomOut(1, { animate: true })} aria-label="縮小地圖"><Minus /></button>
             <button className="locate-button" onClick={resetHome} aria-label="回到我的家"><LocateFixed /></button>
           </div>
-          <div className="attribution">© OpenStreetMap 貢獻者</div>
+          <div className="attribution">© OpenStreetMap 貢獻者 · Protomaps</div>
 
           {visiblePlaces.length === 0 && (
             <div className="empty-state"><span>🔎</span><b>找不到這個地方</b><p>試試搜尋「公園」或「學校」吧！</p></div>

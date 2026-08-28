@@ -13,6 +13,7 @@
     "@types/leaflet": "^1.9.22",
     "leaflet": "^1.9.4",
     "lucide-react": "latest",
+    "protomaps-leaflet": "^5.1.0",
     "react": "latest",
     "react-dom": "latest"
   },

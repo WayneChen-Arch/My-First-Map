@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['map-pin.svg'],
+      includeAssets: ['map-pin.svg', 'north-point.pmtiles'],
       manifest: {
         name: '我的第一張地圖',
         short_name: '第一張地圖',
@@ -31,16 +31,7 @@ export default defineConfig(({ mode }) => {
         ],
       },
       workbox: {
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/tile\.openstreetmap\.org\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'north-point-map-tiles',
-              expiration: { maxEntries: 260, maxAgeSeconds: 60 * 60 * 24 * 30 },
-            },
-          },
-        ],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
       }),
     ],
