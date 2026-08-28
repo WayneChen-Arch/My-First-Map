@@ -171,6 +171,7 @@ button { color: inherit; }
 }
 .category-item span { font-size: 27px; line-height: 1; filter: drop-shadow(0 2px 1px rgba(39, 55, 56, .1)); }
 .category-item b { font-size: 11px; font-weight: 800; letter-spacing: .02em; }
+.category-item small { margin-top: -2px; color: #899694; font-size: 8px; font-weight: 700; }
 
 .panel-tip {
   margin-top: auto;
@@ -389,6 +390,15 @@ button { color: inherit; }
 .card-copy h2 { display: inline; margin: 0 9px 0 0; color: #293f42; font-size: 31px; line-height: 1.15; }
 .card-copy h3 { display: inline; color: #758383; font-size: 13px; font-weight: 600; }
 .card-copy p { margin: 9px 0 0; color: #667574; font-size: 12px; line-height: 1.65; }
+.osm-source {
+  display: inline-block;
+  margin-top: 4px;
+  color: #4c8875;
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.osm-source:hover { text-decoration: underline; }
 .speak-button {
   width: 86px;
   height: 86px;
