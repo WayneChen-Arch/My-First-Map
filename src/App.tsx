@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import * as maplibregl from 'maplibre-gl'
-import type { Map as MapLibreMap, Marker as MapLibreMarker } from 'maplibre-gl'
+import L, { type Map as LeafletMap, type Marker as LeafletMarker } from 'leaflet'
 import {
   ChevronLeft,
   Home,
@@ -17,21 +16,7 @@ import {
 } from 'lucide-react'
 import { HOME, places, type Place } from './places'
 
-const MAP_BOUNDS: [[number, number], [number, number]] = [[114.174, 22.266], [114.235, 22.315]]
-
-function explorationCircle() {
-  const points = Array.from({ length: 65 }, (_, index) => {
-    const angle = (index / 64) * Math.PI * 2
-    const lat = HOME[0] + (Math.sin(angle) * 1000) / 111_320
-    const lon = HOME[1] + (Math.cos(angle) * 1000) / (111_320 * Math.cos((HOME[0] * Math.PI) / 180))
-    return [lon, lat]
-  })
-  return {
-    type: 'Feature' as const,
-    properties: {},
-    geometry: { type: 'Polygon' as const, coordinates: [points] },
-  }
-}
+const MAP_BOUNDS = L.latLngBounds([22.266, 114.174], [22.315, 114.235])
 
 function KidsMap({
   visiblePlaces,
@@ -42,10 +27,10 @@ function KidsMap({
   visiblePlaces: Place[]
   selected: Place | null
   onSelect: (place: Place) => void
-  mapRef: React.MutableRefObject<MapLibreMap | null>
+  mapRef: React.MutableRefObject<LeafletMap | null>
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const markersRef = useRef<MapLibreMarker[]>([])
+  const markersRef = useRef<LeafletMarker[]>([])
   const onSelectRef = useRef(onSelect)
 
   useEffect(() => {
@@ -54,32 +39,31 @@ function KidsMap({
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: 'https://tiles.openfreemap.org/styles/positron',
-      center: [HOME[1], HOME[0]],
+    const map = L.map(containerRef.current, {
+      center: HOME,
       zoom: 15,
       minZoom: 14,
       maxZoom: 16,
       maxBounds: MAP_BOUNDS,
+      maxBoundsViscosity: 0.9,
+      zoomControl: false,
       attributionControl: false,
     })
     mapRef.current = map
-    map.on('load', () => {
-      map.addSource('exploration-area', { type: 'geojson', data: explorationCircle() })
-      map.addLayer({
-        id: 'exploration-area-fill',
-        type: 'fill',
-        source: 'exploration-area',
-        paint: { 'fill-color': '#8ad2b8', 'fill-opacity': 0.08 },
-      })
-      map.addLayer({
-        id: 'exploration-area-line',
-        type: 'line',
-        source: 'exploration-area',
-        paint: { 'line-color': '#58a88e', 'line-width': 2, 'line-opacity': 0.6, 'line-dasharray': [3, 3] },
-      })
-    })
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      minZoom: 14,
+      maxZoom: 16,
+      className: 'soft-map-tiles',
+    }).addTo(map)
+    L.circle(HOME, {
+      radius: 1000,
+      color: '#58a88e',
+      weight: 2,
+      opacity: 0.6,
+      fillColor: '#8ad2b8',
+      fillOpacity: 0.07,
+      dashArray: '7 8',
+    }).addTo(map)
     return () => {
       mapRef.current = null
       map.remove()
@@ -93,26 +77,34 @@ function KidsMap({
     markersRef.current = []
 
     visiblePlaces.forEach((place) => {
-      const element = document.createElement('button')
-      element.className = 'place-marker-wrap'
-      element.type = 'button'
-      element.setAttribute('aria-label', `${place.label}：${place.name}`)
-      element.innerHTML = `<span class="place-marker ${selected?.id === place.id ? 'is-selected' : ''}" style="--marker-color:${place.color}">
-      <span class="marker-emoji">${place.emoji}</span>
-      <span class="marker-label">${place.label}</span>
-      </span>`
-      element.addEventListener('click', () => onSelectRef.current(place))
-      markersRef.current.push(new maplibregl.Marker({ element, anchor: 'bottom' }).setLngLat([place.position[1], place.position[0]]).addTo(map))
+      const icon = L.divIcon({
+        className: 'place-marker-wrap',
+        html: `<span class="place-marker ${selected?.id === place.id ? 'is-selected' : ''}" style="--marker-color:${place.color}">
+          <span class="marker-emoji">${place.emoji}</span>
+          <span class="marker-label">${place.label}</span>
+        </span>`,
+        iconSize: [96, 76],
+        iconAnchor: [48, 64],
+      })
+      const marker = L.marker(place.position, {
+        icon,
+        title: `${place.label}：${place.name}`,
+        zIndexOffset: selected?.id === place.id ? 1000 : 0,
+      }).on('click', () => onSelectRef.current(place)).addTo(map)
+      markersRef.current.push(marker)
     })
 
-    const homeElement = document.createElement('div')
-    homeElement.className = 'home-marker-wrap'
-    homeElement.innerHTML = '<div class="home-marker"><span>🏠</span><b>我的家</b></div>'
-    markersRef.current.push(new maplibregl.Marker({ element: homeElement, anchor: 'bottom' }).setLngLat([HOME[1], HOME[0]]).addTo(map))
+    const homeIcon = L.divIcon({
+      className: 'home-marker-wrap',
+      html: '<div class="home-marker"><span>🏠</span><b>我的家</b></div>',
+      iconSize: [96, 84],
+      iconAnchor: [48, 69],
+    })
+    markersRef.current.push(L.marker(HOME, { icon: homeIcon, zIndexOffset: 900, interactive: false }).addTo(map))
   }, [visiblePlaces, selected, mapRef])
 
   useEffect(() => {
-    if (selected) mapRef.current?.flyTo({ center: [selected.position[1], selected.position[0]], zoom: 16, duration: 700 })
+    if (selected) mapRef.current?.flyTo(selected.position, 16, { duration: 0.7 })
   }, [selected, mapRef])
 
   return <div ref={containerRef} className="map-container" />
@@ -128,7 +120,7 @@ function speak(place: Place) {
 }
 
 function App() {
-  const mapRef = useRef<MapLibreMap | null>(null)
+  const mapRef = useRef<LeafletMap | null>(null)
   const [selected, setSelected] = useState<Place | null>(null)
   const [activeKind, setActiveKind] = useState<string>('all')
   const [query, setQuery] = useState('')
@@ -152,7 +144,7 @@ function App() {
   }
 
   function resetHome() {
-    mapRef.current?.flyTo({ center: [HOME[1], HOME[0]], zoom: 15, duration: 800 })
+    mapRef.current?.flyTo(HOME, 15, { duration: 0.8 })
     setSelected(null)
     setActiveKind('all')
   }
@@ -223,11 +215,11 @@ function App() {
             <Navigation size={16} fill="currentColor" /> 以我的家為中心 · 1 公里探索圈
           </div>
           <div className="map-controls">
-            <button onClick={() => mapRef.current?.zoomIn({ duration: 300 })} aria-label="放大地圖"><Plus /></button>
-            <button onClick={() => mapRef.current?.zoomOut({ duration: 300 })} aria-label="縮小地圖"><Minus /></button>
+            <button onClick={() => mapRef.current?.zoomIn(1, { animate: true })} aria-label="放大地圖"><Plus /></button>
+            <button onClick={() => mapRef.current?.zoomOut(1, { animate: true })} aria-label="縮小地圖"><Minus /></button>
             <button className="locate-button" onClick={resetHome} aria-label="回到我的家"><LocateFixed /></button>
           </div>
-          <div className="attribution">© OpenStreetMap 貢獻者 · OpenFreeMap</div>
+          <div className="attribution">© OpenStreetMap 貢獻者</div>
 
           {visiblePlaces.length === 0 && (
             <div className="empty-state"><span>🔎</span><b>找不到這個地方</b><p>試試搜尋「公園」或「學校」吧！</p></div>
